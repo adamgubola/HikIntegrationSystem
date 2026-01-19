@@ -1,6 +1,9 @@
 #include <iostream>
 #include <limits>
 #include "AlarmService.h"
+#define NOMINMAX
+#include "TcpServer.h"
+
 
 void ShowMenu() {
     std::cout << "\n================ HIKVISION DRIVER SIMULATOR ================" << std::endl;
@@ -25,6 +28,12 @@ void ShowMenu() {
 int main() {
     AlarmService service;
     service.InitializeZones();
+
+    TcpServer server(12345);
+    if (!server.Start()) {
+        std::cerr << "CRITICAL ERROR : Could not start TCP Server!" << std::endl;
+        return -1;
+    }
 
     int choice = -1;
     int id = 0;
@@ -96,6 +105,7 @@ int main() {
             std::cin.get();
         }
     }
+    server.Stop();
 
     return 0;
 }
