@@ -42,6 +42,10 @@ bool TcpServer::Start() {
 	}
 	isRunning = true;
 	std::cout << "Server started on port " << port << std::endl;
+
+	// Start the client listening thread
+	std::thread(&TcpServer::ListenForClients, this).detach();
+
 	return true;
 }
 // Stop the server and clean up resources
@@ -50,6 +54,10 @@ void TcpServer::Stop() {
 		isRunning = false;
 		closesocket(serverSocket);
 		WSACleanup();
+
+		if(serverThread.joinable()) {
+			serverThread.join();
+		}
 		std::cout << "Server stopped." << std::endl;
 	}
 }
@@ -59,15 +67,26 @@ void TcpServer::ListenForClients() {
 		sockaddr_in clientAddr;
 		int clientAddrSize = sizeof(clientAddr);
 		SOCKET clientSocket = accept(serverSocket, (sockaddr*)&clientAddr, &clientAddrSize);
+
 		if(clientSocket == INVALID_SOCKET) {
-			std::cerr << "Accept failed: " << WSAGetLastError() << std::endl;
+			if(isRunning){
+				std::cerr << "Accept failed: " << WSAGetLastError() << std::endl;
+			}
 			continue;
 		}
-		std::cout << "Client connected." << std::endl;
+		std::cout << "\n[NETWORK] Client connected!" << std::endl;
 
-		// Here will be defined the code to handle client communication
+		char buffer[1024];
+		ZeroMemory(buffer, sizeof(buffer));
 
-		closesocket(clientSocket);
-		std::cout << "Client disconnected." << std::endl;
+		int bytesReceived = recv(clientSocket, buffer, sizeof(buffer) - 1, 0);
+
+		if (bytesReceived > 0) {
+			std::string message(buffer, bytesReceived);
+			std::cout << "[NETWORK] Received message: " << message << std::endl;
+
+			closesocket(clientSocket);
+			std::cout << "Client disconnected." << std::endl;
+		}
 	}
 }
