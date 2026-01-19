@@ -9,6 +9,7 @@
 AlarmService::AlarmService() {}
 AlarmService::~AlarmService() {}
 
+// Initialize zones from zones.csv
 void AlarmService::InitializeZones()
 {
 	std::cout << "Initializing zones from zone.csv" << std::endl;

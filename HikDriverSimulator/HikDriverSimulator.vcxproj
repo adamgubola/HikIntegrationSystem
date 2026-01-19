@@ -127,11 +127,13 @@
     <ClInclude Include="AlarmService.h" />
     <ClInclude Include="DoorContact.h" />
     <ClInclude Include="MotionSenzor.h" />
+    <ClInclude Include="TcpServer.h" />
     <ClInclude Include="Zone.h" />
   </ItemGroup>
   <ItemGroup>
     <ClCompile Include="AlarmService.cpp" />
     <ClCompile Include="Main.cpp" />
+    <ClCompile Include="TcpServer.cpp" />
     <ClCompile Include="Zone.cpp" />
   </ItemGroup>
   <ItemGroup>

@@ -36,6 +36,9 @@
     <ClInclude Include="AlarmService.h">
       <Filter>Services</Filter>
     </ClInclude>
+    <ClInclude Include="TcpServer.h">
+      <Filter>Communication</Filter>
+    </ClInclude>
   </ItemGroup>
   <ItemGroup>
     <ClCompile Include="Zone.cpp">
@@ -46,6 +49,9 @@
     </ClCompile>
     <ClCompile Include="Main.cpp">
       <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="TcpServer.cpp">
+      <Filter>Communication</Filter>
     </ClCompile>
   </ItemGroup>
   <ItemGroup>
