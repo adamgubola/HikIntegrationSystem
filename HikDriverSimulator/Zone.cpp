@@ -9,6 +9,11 @@ Zone::~Zone() {}
 
 void Zone::Arm()
 {
+	if(isArmed)
+	{
+		std::cout << "Zone " << id << " (" << name << ") is already armed." << std::endl;
+		return;
+	}
 	if (!isBypassed)
 	{
 		isArmed = true;
@@ -22,6 +27,11 @@ void Zone::Arm()
 }
 void Zone::Disarm()
 {
+	if(!isArmed)
+	{
+		std::cout << "Zone " << id << " (" << name << ") is already disarmed." << std::endl;
+		return;
+	}
 	isArmed = false;
 	isAlarming = false;
 	std::cout << "Zone " << id << " (" << name << ") is disarmed." << std::endl;

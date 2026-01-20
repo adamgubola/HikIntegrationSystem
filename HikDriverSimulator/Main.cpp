@@ -29,7 +29,7 @@ int main() {
     AlarmService service;
     service.InitializeZones();
 
-    TcpServer server(12345);
+    TcpServer server(12345, &service);
     if (!server.Start()) {
         std::cerr << "CRITICAL ERROR : Could not start TCP Server!" << std::endl;
         return -1;

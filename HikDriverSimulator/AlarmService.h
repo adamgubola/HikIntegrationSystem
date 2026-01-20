@@ -22,4 +22,6 @@ public:
 	void ArmZone(int zoneId);
 	void DisarmZone(int zoneId);
 	void BypassZone(int zoneId, bool active);
-};
+	std::string GetZoneStatus(int zoneId);
+	void TriggerZone(int zoneId);
+	};

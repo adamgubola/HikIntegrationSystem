@@ -113,7 +113,7 @@ void AlarmService::ListAllZones()
 			<< ", Bypassed: " << (zone->isBypassed ? "Yes" : "No")
 			<< std::endl;
 	}
-	if(zones.empty())
+	if (zones.empty())
 	{
 		std::cout << "No zones available." << std::endl;
 	}
@@ -149,7 +149,7 @@ void AlarmService::ListArmedZones()
 				<< std::endl;
 		}
 	}
-	if(zones.empty())
+	if (zones.empty())
 	{
 		std::cout << "No zones available." << std::endl;
 	}
@@ -167,7 +167,7 @@ void AlarmService::ListBypassedZones()
 				<< std::endl;
 		}
 	}
-	if(zones.empty())
+	if (zones.empty())
 	{
 		std::cout << "No zones available." << std::endl;
 	}
@@ -185,7 +185,7 @@ void AlarmService::ListDisarmedZones()
 				<< std::endl;
 		}
 	}
-	if(zones.empty())
+	if (zones.empty())
 	{
 		std::cout << "No zones available." << std::endl;
 	}
@@ -203,7 +203,7 @@ void AlarmService::ListAlarmingZones()
 				<< std::endl;
 		}
 	}
-	if(zones.empty())
+	if (zones.empty())
 	{
 		std::cout << "No zones available." << std::endl;
 	}
@@ -218,5 +218,45 @@ std::shared_ptr<Zone> AlarmService::GetZoneById(int zoneId)
 		}
 	}
 	return nullptr;
+}
+std::string AlarmService::GetZoneStatus(int zoneId)
+{
+	auto zone = GetZoneById(zoneId);
+	if (!zone)
+	{
+		return "NOT_FOUND";
+	}
+	if (zone->isBypassed) {
+		return "BYPASSED";
+	}
+	if (zone->isAlarming) {
+		return "ALARMING";
+	}
+	if (zone->isArmed) {
+		return "ARMED";
+	}
+	return "DISARMED";
+}
+void AlarmService::TriggerZone(int zoneId)
+{
+	auto zone = GetZoneById(zoneId);
+	if(!zone)
+	{
+		std::cout << "Zone with ID " << zoneId << " not found for triggering." << std::endl;
+		return;
+	}
+	if (zone->isBypassed) {
+		std::cout << "Zone " << zoneId << " triggered but is BYPASSED. Ignoring." << std::endl;
+		return;
+	}
+	if (zone->isArmed)
+	{
+		zone->isAlarming = true;
+		std::cout << "ALARM TRIGGERED! Zone " << zoneId << " (" << zone->name << ") detected breach!" << std::endl;
+	}
+	else
+	{
+		std::cout << "Zone " << zoneId << " triggered but is DISARMED. Ignoring." << std::endl;
+	}
 }
 
