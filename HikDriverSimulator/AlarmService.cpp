@@ -240,7 +240,7 @@ std::string AlarmService::GetZoneStatus(int zoneId)
 void AlarmService::TriggerZone(int zoneId)
 {
 	auto zone = GetZoneById(zoneId);
-	if(!zone)
+	if (!zone)
 	{
 		std::cout << "Zone with ID " << zoneId << " not found for triggering." << std::endl;
 		return;
@@ -258,5 +258,57 @@ void AlarmService::TriggerZone(int zoneId)
 	{
 		std::cout << "Zone " << zoneId << " triggered but is DISARMED. Ignoring." << std::endl;
 	}
+}
+void AlarmService::SaveState() {
+	std::ofstream file("zone_state.txt");
+	if (!file.is_open()) {
+		std::cerr << "[ERROR] Could not save state to zone_state.txt" << std::endl;
+		return;
+	}
+	for (const auto& zone : zones) {
+		file << zone->id << ";"
+			<< (zone->isArmed ? "1" : "0") << ";"
+			<< (zone->isBypassed ? "1" : "0") << "\n";
+	}
+	file.close();
+	std::cout << "[INFO] Zone states saved successfully" << std::endl;
+}
+void AlarmService::LoadState() {
+	std::ifstream file("zone_state.txt");
+	if (!file.is_open()) {
+		std::cout << "[INFO] No saved state found (zone_state.txt)" << std::endl;
+		return;
+	}
+	std::string line;
+	while (std::getline(file, line)) {
+
+		if (line.empty()) continue;
+
+		std::stringstream ss(line);
+		std::string segment;
+		std::vector<std::string> parts;
+		while (std::getline(ss, segment, ';')) {
+			parts.push_back(segment);
+		}
+		if (parts.size() >= 3) {
+			try
+			{
+				int zoneId = std::stoi(parts[0]);
+				bool isArmed = (parts[1] == "1");
+				bool isBypassed = (parts[2] == "1");
+				auto zone = GetZoneById(zoneId);
+				if (zone) {
+					zone->isArmed = isArmed;
+					zone->isBypassed = isBypassed;
+				}
+			}
+			catch (const std::exception&)
+			{
+				std::cerr << "[ERROR] Corrupt data in state file." << std::endl;
+			}
+		}
+	}
+	file.close();
+	std::cout << "[SYSTEM] Previous zone states loaded." << std::endl;
 }
 

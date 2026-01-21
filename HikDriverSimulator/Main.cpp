@@ -28,6 +28,7 @@ void ShowMenu() {
 int main() {
     AlarmService service;
     service.InitializeZones();
+	service.LoadState();
 
     TcpServer server(12345, &service);
     if (!server.Start()) {
@@ -106,6 +107,7 @@ int main() {
         }
     }
     server.Stop();
+	service.SaveState();
 
     return 0;
 }
