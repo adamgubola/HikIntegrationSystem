@@ -1,5 +1,6 @@
 #include "Zone.h"
 #include <iostream>
+#include "Logger.h"
 
 Zone::Zone(int zoneId, const std::string& zoneName)
 	: id(zoneId), name(zoneName), isArmed(false), isAlarming(false), isBypassed(false)
@@ -11,41 +12,41 @@ void Zone::Arm()
 {
 	if(isArmed)
 	{
-		std::cout << "Zone " << id << " (" << name << ") is already armed." << std::endl;
+		Logger::Info("Zone " + std::to_string(id) + " (" + name + ") is already armed.");
 		return;
 	}
 	if (!isBypassed)
 	{
 		isArmed = true;
 		isAlarming = false;
-		std::cout << "Zone " << id << " (" << name << ") is armed." << std::endl;
+		Logger::Info("Zone " + std::to_string(id) + " (" + name + ") is armed.");
 	}
 	else
 	{
-		std::cout << "Zone " << id << " (" << name << ") cannot be armed because it is bypassed." << std::endl;
+		Logger::Info("Zone " + std::to_string(id) + " (" + name + ") cannot be armed because it is bypassed.");
 	}
 }
 void Zone::Disarm()
 {
 	if(!isArmed)
 	{
-		std::cout << "Zone " << id << " (" << name << ") is already disarmed." << std::endl;
+		Logger::Info("Zone " + std::to_string(id) + " (" + name + ") is already disarmed.");
 		return;
 	}
 	isArmed = false;
 	isAlarming = false;
-	std::cout << "Zone " << id << " (" << name << ") is disarmed." << std::endl;
+	Logger::Info("Zone " + std::to_string(id) + " (" + name + ") is disarmed.");
 }
 void Zone::SetBypass(bool active)
 {
 	isBypassed = active;
 	if(active)
 	{
-		std::cout << "Zone " << id << " (" << name << ") is bypassed." << std::endl;
+		Logger::Info("Zone " + std::to_string(id) + " (" + name + ") is bypassed.");
 	}
 	else
 	{
-		std::cout << "Zone " << id << " (" << name << ") is unbypassed." << std::endl;
+		Logger::Info("Zone " + std::to_string(id) + " (" + name + ") is unbypassed.");
 	}
 
 }

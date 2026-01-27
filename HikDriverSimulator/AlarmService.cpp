@@ -5,19 +5,22 @@
 #include <iostream>
 #include <fstream>
 #include <sstream>
+#include <nlohmann/json.hpp>
+#include "Logger.h"	
 
 AlarmService::AlarmService() {}
 AlarmService::~AlarmService() {}
+using json = nlohmann::json;
 
 // Initialize zones from zones.csv
 void AlarmService::InitializeZones()
 {
-	std::cout << "Initializing zones from zone.csv" << std::endl;
+	Logger::Info("Initializing zones from zones.csv");
 	zones.clear();
 	std::ifstream file("zones.csv");
 	if (!file.is_open())
 	{
-		std::cerr << "Failed to open zones.csv" << std::endl;
+		Logger::Error("Failed to open zones.csv");
 		return;
 	}
 	std::string line;
@@ -52,15 +55,15 @@ void AlarmService::InitializeZones()
 				newZone = std::make_shared<Zone>(zoneId, zoneName);
 			}
 			zones.push_back(newZone);
-			std::cout << "Added zone: ID=" << zoneId << ", Name=" << zoneName << ", Type=" << zoneType << std::endl;
+			Logger::Info("Added zone: ID=" + std::to_string(zoneId) + ", Name=" + zoneName + ", Type=" + zoneType);
 		}
 		else {
-			std::cerr << "Invalid line in zones.csv: " << line << std::endl;
+			Logger::Error("Invalid line in zones.csv: " + line);
 		}
 
 	}
 	file.close();
-	std::cout << zones.size() << " zones initialized." << std::endl;
+	Logger::Info(std::to_string(zones.size()) + " zones initialized.");
 
 }
 void AlarmService::ArmZone(int zoneId)
@@ -73,7 +76,7 @@ void AlarmService::ArmZone(int zoneId)
 			return;
 		}
 	}
-	std::cout << "Zone with ID " << zoneId << " not found." << std::endl;
+	Logger::Warning("Zone with ID " + std::to_string(zoneId) + " not found.");
 
 }
 void AlarmService::DisarmZone(int zoneId)
@@ -86,7 +89,7 @@ void AlarmService::DisarmZone(int zoneId)
 			return;
 		}
 	}
-	std::cout << "Zone with ID " << zoneId << " not found." << std::endl;
+	Logger::Warning("Zone with ID " + std::to_string(zoneId) + " not found.");
 }
 void AlarmService::BypassZone(int zoneId, bool active)
 {
@@ -98,7 +101,7 @@ void AlarmService::BypassZone(int zoneId, bool active)
 			return;
 		}
 	}
-	std::cout << "Zone with ID " << zoneId << " not found." << std::endl;
+	Logger::Warning("Zone with ID " + std::to_string(zoneId) + " not found.");
 }
 void AlarmService::ListAllZones()
 {
@@ -115,7 +118,7 @@ void AlarmService::ListAllZones()
 	}
 	if (zones.empty())
 	{
-		std::cout << "No zones available." << std::endl;
+		Logger::Info("No zones available to list.");
 	}
 }
 void AlarmService::ListOneZone(int zoneId)
@@ -134,7 +137,7 @@ void AlarmService::ListOneZone(int zoneId)
 			return;
 		}
 	}
-	std::cout << "Zone with ID " << zoneId << " not found." << std::endl;
+	Logger::Warning("Zone with ID " + std::to_string(zoneId) + " not found.");
 }
 void AlarmService::ListArmedZones()
 {
@@ -151,7 +154,7 @@ void AlarmService::ListArmedZones()
 	}
 	if (zones.empty())
 	{
-		std::cout << "No zones available." << std::endl;
+		Logger::Info("No zones available to list.");
 	}
 }
 void AlarmService::ListBypassedZones()
@@ -169,7 +172,7 @@ void AlarmService::ListBypassedZones()
 	}
 	if (zones.empty())
 	{
-		std::cout << "No zones available." << std::endl;
+		Logger::Info("No zones available to list.");
 	}
 }
 void AlarmService::ListDisarmedZones()
@@ -187,7 +190,7 @@ void AlarmService::ListDisarmedZones()
 	}
 	if (zones.empty())
 	{
-		std::cout << "No zones available." << std::endl;
+		Logger::Info("No zones available to list.");
 	}
 }
 void AlarmService::ListAlarmingZones()
@@ -205,7 +208,7 @@ void AlarmService::ListAlarmingZones()
 	}
 	if (zones.empty())
 	{
-		std::cout << "No zones available." << std::endl;
+		Logger::Info("No zones available to list.");
 	}
 }
 std::shared_ptr<Zone> AlarmService::GetZoneById(int zoneId)
@@ -242,27 +245,27 @@ void AlarmService::TriggerZone(int zoneId)
 	auto zone = GetZoneById(zoneId);
 	if (!zone)
 	{
-		std::cout << "Zone with ID " << zoneId << " not found for triggering." << std::endl;
+		Logger::Info("Zone with ID " + std::to_string(zoneId) + " not found for triggering.");
 		return;
 	}
 	if (zone->isBypassed) {
-		std::cout << "Zone " << zoneId << " triggered but is BYPASSED. Ignoring." << std::endl;
+		Logger::Info("Zone " + std::to_string(zoneId) + " is bypassed. Ignoring trigger.");
 		return;
 	}
 	if (zone->isArmed)
 	{
 		zone->isAlarming = true;
-		std::cout << "ALARM TRIGGERED! Zone " << zoneId << " (" << zone->name << ") detected breach!" << std::endl;
+		Logger::Warning("ALARM TRIGGERED! Zone " + std::to_string(zoneId) + " (" + zone->name + ") detected breach!");
 	}
 	else
 	{
-		std::cout << "Zone " << zoneId << " triggered but is DISARMED. Ignoring." << std::endl;
+		Logger::Info("Zone " + std::to_string(zoneId) + " triggered but is DISARMED. Ignoring.");
 	}
 }
-void AlarmService::SaveState() {
+void AlarmService::SaveStateToTxt() {
 	std::ofstream file("zone_state.txt");
 	if (!file.is_open()) {
-		std::cerr << "[ERROR] Could not save state to zone_state.txt" << std::endl;
+		Logger::Error("Could not save state to zone_state.txt");
 		return;
 	}
 	for (const auto& zone : zones) {
@@ -271,12 +274,12 @@ void AlarmService::SaveState() {
 			<< (zone->isBypassed ? "1" : "0") << "\n";
 	}
 	file.close();
-	std::cout << "[INFO] Zone states saved successfully" << std::endl;
+	Logger::Info("Zone states saved successfully to zone_state.txt");
 }
-void AlarmService::LoadState() {
+void AlarmService::LoadStateFromTxt() {
 	std::ifstream file("zone_state.txt");
 	if (!file.is_open()) {
-		std::cout << "[INFO] No saved state found (zone_state.txt)" << std::endl;
+		Logger::Warning("No saved state found (zone_state.txt)");
 		return;
 	}
 	std::string line;
@@ -304,11 +307,73 @@ void AlarmService::LoadState() {
 			}
 			catch (const std::exception&)
 			{
-				std::cerr << "[ERROR] Corrupt data in state file." << std::endl;
+				Logger::Error("Corrupt data in state file.");
 			}
 		}
 	}
 	file.close();
-	std::cout << "[SYSTEM] Previous zone states loaded." << std::endl;
+	Logger::Info("Previous zone states loaded from zone_state.txt");
 }
+void AlarmService::SaveStateToJson() {
+
+	json JArray;
+	for (const auto& zone : zones) {
+
+		json jZone;
+		jZone["id"] = zone->id;
+		jZone["armed"] = zone->isArmed;
+		jZone["bypassed"] = zone->isBypassed;
+
+
+		JArray.push_back(jZone);
+	}
+	std::ofstream file("zone_state.json");
+	if (file.is_open()) {
+		file << JArray.dump(4);
+		file.close();
+		Logger::Info("Zone states saved successfully to JSON.");
+	}
+	else {
+		Logger::Error("Could not save state to zone_state.json");
+	}
+}
+void AlarmService::LoadStateFromJson() {
+	std::ifstream file("zone_state.json");
+	if (!file.is_open()) {
+		Logger::Warning("No saved JSON state found (zone_state.json)");
+		return;
+	}
+	json JArray;
+	try
+	{
+		file >> JArray;
+
+		for (const auto& jZone : JArray)
+		{
+			if (jZone.contains("id") && jZone.contains("armed") && jZone.contains("bypassed"))
+			{
+				int zoneId = jZone["id"];
+				bool isArmed = jZone["armed"];
+				bool isBypassed = jZone["bypassed"];
+				auto zone = GetZoneById(zoneId);
+				if (zone) {
+					zone->isArmed = isArmed;
+					zone->isBypassed = isBypassed;
+				}
+			}
+		}
+		Logger::Info("Previous zone states loaded from JSON.");
+	}
+	catch (const json::parse_error& e)
+	{
+		Logger::Error("JSON parse error while loading state: " + std::string(e.what()));
+	}
+	catch (const std::exception& e)
+	{
+		Logger::Error("Exception while loading JSON state: " + std::string(e.what()));
+	}
+	file.close();
+};
+
+
 

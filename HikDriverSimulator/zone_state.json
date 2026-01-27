@@ -1,0 +1,27 @@
+[
+    {
+        "armed": true,
+        "bypassed": false,
+        "id": 1
+    },
+    {
+        "armed": false,
+        "bypassed": false,
+        "id": 2
+    },
+    {
+        "armed": false,
+        "bypassed": false,
+        "id": 3
+    },
+    {
+        "armed": false,
+        "bypassed": false,
+        "id": 4
+    },
+    {
+        "armed": false,
+        "bypassed": false,
+        "id": 5
+    }
+]

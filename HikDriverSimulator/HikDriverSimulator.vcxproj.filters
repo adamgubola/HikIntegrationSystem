@@ -22,6 +22,9 @@
     <Filter Include="Communication">
       <UniqueIdentifier>{73800b2b-bacd-4981-ba06-f3aa7914e7cd}</UniqueIdentifier>
     </Filter>
+    <Filter Include="Core">
+      <UniqueIdentifier>{422baae7-c63a-4c86-a1d9-5bc2c66cb3fb}</UniqueIdentifier>
+    </Filter>
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="Zone.h">
@@ -39,6 +42,12 @@
     <ClInclude Include="TcpServer.h">
       <Filter>Communication</Filter>
     </ClInclude>
+    <ClInclude Include="HikDriverApp.h">
+      <Filter>Core</Filter>
+    </ClInclude>
+    <ClInclude Include="Logger.h">
+      <Filter>Core</Filter>
+    </ClInclude>
   </ItemGroup>
   <ItemGroup>
     <ClCompile Include="Zone.cpp">
@@ -52,6 +61,12 @@
     </ClCompile>
     <ClCompile Include="TcpServer.cpp">
       <Filter>Communication</Filter>
+    </ClCompile>
+    <ClCompile Include="HikDriverApp.cpp">
+      <Filter>Core</Filter>
+    </ClCompile>
+    <ClCompile Include="Logger.cpp">
+      <Filter>Core</Filter>
     </ClCompile>
   </ItemGroup>
   <ItemGroup>

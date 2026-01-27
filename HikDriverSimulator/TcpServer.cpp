@@ -3,6 +3,7 @@
 #include <algorithm>
 #include <cctype>
 #include <string>
+#include "Logger.h"
 
 
 TcpServer::TcpServer(int port) : port(port), serverSocket(INVALID_SOCKET), isRunning(false)
@@ -22,13 +23,13 @@ bool TcpServer::Start() {
 	int result = WSAStartup(MAKEWORD(2, 2), &wsaData);
 
 	if (result != 0) {
-		std::cerr << "WSAStartup failed: " << result << std::endl;
+		Logger::Error("WSAStartup failed: " + std::to_string(result));
 		return false;
 	}
 	// Create a TCP socket
 	serverSocket = socket(AF_INET, SOCK_STREAM, IPPROTO_TCP);
 	if (serverSocket == INVALID_SOCKET) {
-		std::cerr << "Socket creation failed: " << WSAGetLastError() << std::endl;
+		Logger::Error("Socket creation failed: " + std::to_string(WSAGetLastError()));
 		WSACleanup();
 		return false;
 	}
@@ -39,20 +40,20 @@ bool TcpServer::Start() {
 	serverAddr.sin_port = htons(port);
 
 	if (bind(serverSocket, (sockaddr*)&serverAddr, sizeof(serverAddr)) == SOCKET_ERROR) {
-		std::cerr << "Bind failed: " << WSAGetLastError() << std::endl;
+		Logger::Error("Bind failed: " + std::to_string(WSAGetLastError()));
 		closesocket(serverSocket);
 		WSACleanup();
 		return false;
 	}
 	// Start listening for incoming connections
 	if (listen(serverSocket, SOMAXCONN) == SOCKET_ERROR) {
-		std::cerr << "Listen failed: " << WSAGetLastError() << std::endl;
+		Logger::Error("Listen failed: " + std::to_string(WSAGetLastError()));
 		closesocket(serverSocket);
 		WSACleanup();
 		return false;
 	}
 	isRunning = true;
-	std::cout << "Server started on port " << port << std::endl;
+	Logger::Network("TCP Server started on port " + std::to_string(port));
 
 	// Start the client listening thread
 	std::thread(&TcpServer::ListenForClients, this).detach();
@@ -69,7 +70,7 @@ void TcpServer::Stop() {
 		if (serverThread.joinable()) {
 			serverThread.join();
 		}
-		std::cout << "Server stopped." << std::endl;
+		Logger::Network("TCP Server stopped.");
 	}
 }
 // Listen for incoming client connections
@@ -81,12 +82,12 @@ void TcpServer::ListenForClients() {
 
 		if (clientSocket == INVALID_SOCKET) {
 			if (isRunning) {
-				std::cerr << "Accept failed: " << WSAGetLastError() << std::endl;
+				Logger::Error("Accept failed: " + std::to_string(WSAGetLastError()));
 			}
 			continue;
 		}
-		std::cout << "\n[NETWORK] Client connected!" << std::endl;
-
+		Logger::Network("Client connected from ");
+		
 		char buffer[1024];
 		ZeroMemory(buffer, sizeof(buffer));
 
@@ -94,7 +95,7 @@ void TcpServer::ListenForClients() {
 
 		if (bytesReceived > 0) {
 			std::string message(buffer, bytesReceived);
-			std::cout << "[NETWORK] Received message: " << message << std::endl;
+			Logger::Network("Received message: " + message);
 
 			std::string response = "ERROR: Unknown command format";
 
@@ -114,45 +115,41 @@ void TcpServer::ListenForClients() {
 						if (!isArmed) {
 							alarmService->ArmZone(zoneId);
 							response = "SUCCESS: Zone " + std::to_string(zoneId) + " Armed via Network.";
-							std::cout << "[EXECUTE] Zone " << zoneId << " Armed via Network." << std::endl;
+							Logger::Info("Zone " + std::to_string(zoneId) + " Armed via Network.");
 						}
 						else {
-							std::cout << "[EXECUTE] Zone " << zoneId << " is already Armed." << std::endl;
+							Logger::Warning("Zone " + std::to_string(zoneId) + " is already Armed.");
 							response = "FAILED: Zone " + std::to_string(zoneId) + " is already Armed.";
 						}
 					}
 					else if (command == "DISARM") {
 						bool isArmed = alarmService->GetZoneById(zoneId)->isArmed;
 						if (!isArmed) {
-							std::cout << "[EXECUTE] Zone " << zoneId << " is already Disarmed." << std::endl;
+							Logger::Warning("Zone " + std::to_string(zoneId) + " is already Disarmed.");
 							response = "FAILED: Zone " + std::to_string(zoneId) + " is already Disarmed.";
 						}
 						else {
 							alarmService->DisarmZone(zoneId);
-							response = "SUCCESS: Zone " + std::to_string(zoneId) + " Disarmed via Network.";
-							std::cout << "[EXECUTE] Zone " << zoneId << " Disarmed via Network." << std::endl;
+							Logger::Info("Zone " + std::to_string(zoneId) + " Disarmed via Network.");
 						}
 					}
 					else if (command == "BYPASS") {
 						alarmService->BypassZone(zoneId, true);
-						response = "SUCCESS: Zone " + std::to_string(zoneId) + " Bypassed via Network.";
-						std::cout << "[EXECUTE] Zone " << zoneId << " Bypassed via Network." << std::endl;
+						Logger::Info("Zone " + std::to_string(zoneId) + " Bypassed via Network.");
 					}
 					else if (command == "UNBYPASS") {
 						alarmService->BypassZone(zoneId, false);
-						response = "SUCCESS: Zone " + std::to_string(zoneId) + " Unbypassed via Network.";
-						std::cout << "[EXECUTE] Zone " << zoneId << " Unbypassed via Network." << std::endl;
+						Logger::Info("Zone " + std::to_string(zoneId) + " Unbypassed via Network.");
 					}
 					else if (command == "STATUS") {
 						std::string status = alarmService->GetZoneStatus(zoneId);
 
 						if (status == "NOT_FOUND") {
-							response = "ERROR: Zone " + std::to_string(zoneId) + " not found";
-							std::cout << "[ERROR] Status query failed: Zone " << zoneId << " not found." << std::endl;
+							Logger::Error("Status query failed: Zone " + std::to_string(zoneId) + " not found.");
 						}
 						else {
 							response = "STATUS:" + status;
-							std::cout << "[QUERY] Zone " << zoneId << " status sent: " << status << std::endl;
+							Logger::Info("Zone " + std::to_string(zoneId) + " status queried: " + status);
 						}
 					}
 					else if (command == "TRIGGER") {
@@ -165,27 +162,27 @@ void TcpServer::ListenForClients() {
 						else {
 							response = "OK: Zone " + std::to_string(zoneId) + " triggered (no alarm generated)";
 						}
-						std::cout << "[EXECUTE] Trigger signal processed for Zone " << zoneId << std::endl;
+						Logger::Info("Trigger signal processed for Zone " + std::to_string(zoneId));
 					}
 					else {
 						response = "ERROR: Unknown command";
-						std::cout << "[NETWORK] Unknown command: " << command << std::endl;
+						Logger::Error("Unknown command received: " + command);
 					}
 				}
 				catch (const std::exception&)
 				{
 					response = "ERROR: Invalid ID format";
-					std::cout << "[ERROR] Invalid ID format." << std::endl;
+					Logger::Error("Invalid ID format received.");
 				}
 			}
 			else {
-				std::cout << "[ERROR] Invalid message format. Use 'Command:ID'" << std::endl;
+				Logger::Error("Invalid message format received.");
 			}
 
 			SendResponse(clientSocket, response);
-			std::cout << "[NETWORK] Response sent: " << response << std::endl;
+			Logger::Network("Response sent: " + response);
 			closesocket(clientSocket);
-			std::cout << "Client disconnected." << std::endl;
+			Logger::Network("Client disconnected.");
 		}
 	}
 }
@@ -194,6 +191,6 @@ void TcpServer::SendResponse(SOCKET clientSocket, std::string& response) {
 	response += "\n";
 	int bytesSent = send(clientSocket, response.c_str(), response.length(), 0);
 	if (bytesSent == SOCKET_ERROR) {
-		std::cerr << "Send failed: " << WSAGetLastError() << std::endl;
+		Logger::Error("Send failed: " + std::to_string(WSAGetLastError()));
 	}
 }

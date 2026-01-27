@@ -24,6 +24,8 @@ public:
 	void BypassZone(int zoneId, bool active);
 	std::string GetZoneStatus(int zoneId);
 	void TriggerZone(int zoneId);
-	void SaveState();
-	void LoadState();
+	void SaveStateToTxt();
+	void LoadStateFromTxt();
+	void SaveStateToJson();
+	void LoadStateFromJson();
 	};
