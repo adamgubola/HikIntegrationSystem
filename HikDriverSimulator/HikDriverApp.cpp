@@ -5,6 +5,9 @@
 #include <limits>
 #include "AlarmService.h"
 #include "Logger.h"
+#include <nlohmann/json.hpp>
+
+using json = nlohmann::json;
 
 HikDriverApp::HikDriverApp() : isRunning(true) {
 
@@ -64,42 +67,42 @@ void HikDriverApp::Run() {
 		case 1: // Arm
 			std::cout << "Enter Zone ID to ARM: ";
 			std::cin >> id;
-			alarmService.ArmZone(id);
+			PrintJsonToConsole(alarmService.ArmZone(id));
 			break;
 		case 2: // Disarm
 			std::cout << "Enter Zone ID to DISARM: ";
 			std::cin >> id;
-			alarmService.DisarmZone(id);
+			PrintJsonToConsole(alarmService.DisarmZone(id));
 			break;
 		case 3: // Bypass
 			std::cout << "Enter Zone ID to BYPASS: ";
 			std::cin >> id;
-			alarmService.BypassZone(id, true);
+			PrintJsonToConsole(alarmService.BypassZone(id, true));
 			break;
 		case 4: // Unbypass
 			std::cout << "Enter Zone ID to UNBYPASS: ";
 			std::cin >> id;
-			alarmService.BypassZone(id, false);
+			PrintJsonToConsole(alarmService.BypassZone(id, false));
 			break;
 		case 5:
-			alarmService.ListAllZones();
+			PrintJsonToConsole(alarmService.ListAllZones());
 			break;
 		case 6:
-			alarmService.ListArmedZones();
+			PrintJsonToConsole(alarmService.ListArmedZones());
 			break;
 		case 7:
-			alarmService.ListDisarmedZones();
+			PrintJsonToConsole(alarmService.ListDisarmedZones());
 			break;
 		case 8:
-			alarmService.ListBypassedZones();
+			PrintJsonToConsole(alarmService.ListBypassedZones());
 			break;
 		case 9:
-			alarmService.ListAlarmingZones();
+			PrintJsonToConsole(alarmService.ListAlarmingZones());
 			break;
 		case 10:
 			std::cout << "Enter Zone ID to find: ";
 			std::cin >> id;
-			alarmService.ListOneZone(id);
+			PrintJsonToConsole(alarmService.ListOneZone(id));
 			break;
 		case 0:
 			std::cout << "Exiting system..." << std::endl;
@@ -114,5 +117,58 @@ void HikDriverApp::Run() {
 			std::cin.ignore();
 			std::cin.get();
 		}
+	}
+}
+void HikDriverApp::PrintJsonToConsole(const std::string& jsonResponse) {
+	try
+	{
+		auto jsonInp = json::parse(jsonResponse);
+		if (jsonInp.is_array()) {
+			if (jsonInp.empty()) {
+				Logger::Info("Zone not found");
+				std::cout << "[INFO] Zone not found" << std::endl;
+				return;
+			}
+			std::cout << "\n   --- ZONE LIST ---" << std::endl;
+			for (const auto& item : jsonInp) {
+
+				if (item.contains("id")) std::cout << "| ID: " << item["id"];
+				if (item.contains("name")) std::cout << "| Name: " << item["name"];
+				if (item.contains("type")) std::cout << "| Type: " << item["type"];
+				if (item.contains("armed")) std::cout << " | Status: " << (item["armed"].get<bool>() ? "ARMED" : "DISARMED");
+				if (item.contains("bypassed") && item["bypassed"].get<bool>()) std::cout << " | BYPASSED";
+				if (item.contains("alarming") && item["alarming"].get<bool>()) std::cout << " | !!! ALARM !!!";
+				std::cout << std::endl;;
+			}
+			std::cout << "   -----------------\n" << std::endl;
+		}
+		else {
+			std::string status = jsonInp.value("status", "UNKNOWN");
+			std::string message = jsonInp.value("message", "");
+
+			if (status == "SUCCESS") {
+				if (jsonInp.contains("id")) std::cout << "| ID: " << jsonInp["id"];
+				if (jsonInp.contains("name")) std::cout << "| Name: " << jsonInp["name"];
+				if (jsonInp.contains("type")) std::cout << "| Type: " << jsonInp["type"];
+				if (jsonInp.contains("armed")) std::cout << " | Status: " << (jsonInp["armed"].get<bool>() ? "ARMED" : "DISARMED");
+				if (jsonInp.contains("bypassed") && jsonInp["bypassed"].get<bool>()) std::cout << " | BYPASSED";
+				if (jsonInp.contains("alarming") && jsonInp["alarming"].get<bool>()) std::cout << " | !!! ALARM !!!";
+				if (jsonInp.contains("message")) std::cout << "| Message: " << jsonInp["message"];
+				if (jsonInp.contains("newState")) std::cout << "| New Sate: " << jsonInp["newState"] << std::endl;;
+			}
+			else if (status == "ERROR" || status == "ALARM" || status == "IGNORED") {
+				if (jsonInp.contains("id")) std::cout << "| ID: " << jsonInp["id"];
+				if (jsonInp.contains("name")) std::cout << "| Name: " << jsonInp["name"];
+				std::cout << " [" << status << "] ";
+				std::cout << " [" << message << "] " << std::endl;
+			}
+			else {
+				if (jsonInp.contains("id")) std::cout << "| ID: " << jsonInp["id"];
+				std::cout << " [" << status << "] " << message << std::endl;
+			}
+		}
+	}
+	catch (const std::exception& e) {
+		std::cout << " [RAW] " << jsonResponse << std::endl;
 	}
 }

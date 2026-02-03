@@ -3,7 +3,9 @@
 #include <algorithm>
 #include <cctype>
 #include <string>
+#include <ws2tcpip.h>
 #include "Logger.h"
+#include <nlohmann/json.hpp>
 
 
 TcpServer::TcpServer(int port) : port(port), serverSocket(INVALID_SOCKET), isRunning(false)
@@ -86,8 +88,10 @@ void TcpServer::ListenForClients() {
 			}
 			continue;
 		}
-		Logger::Network("Client connected from ");
-		
+		char clientIp[INET_ADDRSTRLEN];
+		inet_ntop(AF_INET, &(clientAddr.sin_addr), clientIp, INET_ADDRSTRLEN);
+		Logger::Network("Client connected from " + std::string(clientIp));
+
 		char buffer[1024];
 		ZeroMemory(buffer, sizeof(buffer));
 
@@ -99,84 +103,75 @@ void TcpServer::ListenForClients() {
 
 			std::string response = "ERROR: Unknown command format";
 
+			std::string command;
+			std::string paramStr;
+
 			size_t delimiterPos = message.find(':');
 
 			if (delimiterPos != std::string::npos) {
-				std::string command = message.substr(0, delimiterPos);
-				std::transform(command.begin(), command.end(), command.begin(),
-					[](auto c) { return std::toupper(c); });
-				std::string paramStr = message.substr(delimiterPos + 1);
-				try
-				{
-					int zoneId = std::stoi(paramStr);
-
-					if (command == "ARM") {
-						bool isArmed = alarmService->GetZoneById(zoneId)->isArmed;
-						if (!isArmed) {
-							alarmService->ArmZone(zoneId);
-							response = "SUCCESS: Zone " + std::to_string(zoneId) + " Armed via Network.";
-							Logger::Info("Zone " + std::to_string(zoneId) + " Armed via Network.");
-						}
-						else {
-							Logger::Warning("Zone " + std::to_string(zoneId) + " is already Armed.");
-							response = "FAILED: Zone " + std::to_string(zoneId) + " is already Armed.";
-						}
-					}
-					else if (command == "DISARM") {
-						bool isArmed = alarmService->GetZoneById(zoneId)->isArmed;
-						if (!isArmed) {
-							Logger::Warning("Zone " + std::to_string(zoneId) + " is already Disarmed.");
-							response = "FAILED: Zone " + std::to_string(zoneId) + " is already Disarmed.";
-						}
-						else {
-							alarmService->DisarmZone(zoneId);
-							Logger::Info("Zone " + std::to_string(zoneId) + " Disarmed via Network.");
-						}
-					}
-					else if (command == "BYPASS") {
-						alarmService->BypassZone(zoneId, true);
-						Logger::Info("Zone " + std::to_string(zoneId) + " Bypassed via Network.");
-					}
-					else if (command == "UNBYPASS") {
-						alarmService->BypassZone(zoneId, false);
-						Logger::Info("Zone " + std::to_string(zoneId) + " Unbypassed via Network.");
-					}
-					else if (command == "STATUS") {
-						std::string status = alarmService->GetZoneStatus(zoneId);
-
-						if (status == "NOT_FOUND") {
-							Logger::Error("Status query failed: Zone " + std::to_string(zoneId) + " not found.");
-						}
-						else {
-							response = "STATUS:" + status;
-							Logger::Info("Zone " + std::to_string(zoneId) + " status queried: " + status);
-						}
-					}
-					else if (command == "TRIGGER") {
-						alarmService->TriggerZone(zoneId);
-
-						auto zone = alarmService->GetZoneById(zoneId);
-						if (zone && zone->isAlarming) {
-							response = "ALARM: Zone " + std::to_string(zoneId) + " went into ALARM state!";
-						}
-						else {
-							response = "OK: Zone " + std::to_string(zoneId) + " triggered (no alarm generated)";
-						}
-						Logger::Info("Trigger signal processed for Zone " + std::to_string(zoneId));
-					}
-					else {
-						response = "ERROR: Unknown command";
-						Logger::Error("Unknown command received: " + command);
-					}
-				}
-				catch (const std::exception&)
-				{
-					response = "ERROR: Invalid ID format";
-					Logger::Error("Invalid ID format received.");
-				}
+				command = message.substr(0, delimiterPos);
+				paramStr = message.substr(delimiterPos + 1);
 			}
 			else {
-				Logger::Error("Invalid message format received.");
+				command = message;
+				command.erase(std::remove(command.begin(), command.end(), '\n'), command.end());
+				command.erase(std::remove(command.begin(), command.end(), '\r'), command.end());
+			}
+			std::transform(command.begin(), command.end(), command.begin(),
+				[](auto c) { return std::toupper(c); });
+
+			try {
+				if (command == "ARM") {
+					response = alarmService->ArmZone(std::stoi(paramStr));
+				}
+				else if (command == "DISARM") {
+					response = alarmService->DisarmZone(std::stoi(paramStr));
+				}
+				else if (command == "BYPASS") {
+					response = alarmService->BypassZone(std::stoi(paramStr), true);
+				}
+				else if (command == "UNBYPASS") {
+					response = alarmService->BypassZone(std::stoi(paramStr), false);
+				}
+				else if (command == "STATUS") {
+					response = alarmService->GetZoneStatus(std::stoi(paramStr));
+				}
+				else if (command == "TRIGGER") {
+					response = alarmService->TriggerZone(std::stoi(paramStr));
+				}
+				else if (command == "LIST_ALL_ZONES") {
+					response = alarmService->ListAllZones();
+					Logger::Info("Sent list: All Zones");
+				}
+				else if (command == "LIST_ARMED_ZONES") {
+					response = alarmService->ListArmedZones();
+				}
+				else if (command == "LIST_BYPASSED_ZONES") {
+					response = alarmService->ListBypassedZones();
+				}
+				else if (command == "LIST_DISARMED_ZONES") {
+					response = alarmService->ListDisarmedZones();
+				}
+				else if (command == "LIST_ALARMING_ZONES") {
+					response = alarmService->ListAlarmingZones();
+				}
+				else if (command == "LIST_ONE_ZONE") {
+					response = alarmService->ListOneZone(std::stoi(paramStr));
+				}
+				else {
+					nlohmann::json jErr;
+					jErr["status"] = "ERROR";
+					jErr["message"] = "Unknown command: " + command;
+					response = jErr.dump();
+					Logger::Error("Unknown command: " + command);
+				}
+			}
+			catch (const std::exception& e) {
+				nlohmann::json jErr;
+				jErr["status"] = "ERROR";
+				jErr["message"] = "Invalid command format or ID";
+				response = jErr.dump();
+				Logger::Error("Exception in command processing: " + std::string(e.what()));
 			}
 
 			SendResponse(clientSocket, response);
@@ -184,8 +179,12 @@ void TcpServer::ListenForClients() {
 			closesocket(clientSocket);
 			Logger::Network("Client disconnected.");
 		}
+		else {
+			Logger::Error("Invalid message format received.");
+		}
 	}
 }
+
 // Send a response back to the client
 void TcpServer::SendResponse(SOCKET clientSocket, std::string& response) {
 	response += "\n";

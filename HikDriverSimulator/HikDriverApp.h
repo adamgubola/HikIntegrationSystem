@@ -12,6 +12,7 @@ private:
 	std::unique_ptr<TcpServer> tcpServer;
 	bool isRunning;
 	void ShowMenu();
+	void PrintJsonToConsole(const std::string& jsonResponse);
 
 public:
 	HikDriverApp();

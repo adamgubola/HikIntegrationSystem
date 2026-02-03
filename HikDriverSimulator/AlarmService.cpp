@@ -66,149 +66,257 @@ void AlarmService::InitializeZones()
 	Logger::Info(std::to_string(zones.size()) + " zones initialized.");
 
 }
-void AlarmService::ArmZone(int zoneId)
+std::string AlarmService::ArmZone(int zoneId)
 {
-	for (auto& zone : zones)
-	{
-		if (zone->id == zoneId)
-		{
-			zone->Arm();
-			return;
-		}
-	}
-	Logger::Warning("Zone with ID " + std::to_string(zoneId) + " not found.");
+	auto zone = GetZoneById(zoneId);
 
-}
-void AlarmService::DisarmZone(int zoneId)
-{
-	for (auto& zone : zones)
-	{
-		if (zone->id == zoneId)
-		{
-			zone->Disarm();
-			return;
-		}
+	if (!zone) {
+		Logger::Warning("Arm failed: Zone " + std::to_string(zoneId) + " not found.");
+		return CreateResponse("ERROR", "Zone not found", zoneId);
 	}
-	Logger::Warning("Zone with ID " + std::to_string(zoneId) + " not found.");
-}
-void AlarmService::BypassZone(int zoneId, bool active)
-{
-	for (auto& zone : zones)
-	{
-		if (zone->id == zoneId)
-		{
-			zone->SetBypass(active);
-			return;
-		}
+	if (zone->isArmed) {
+		Logger::Info("Arm request: Zone " + std::to_string(zoneId) + " already armed.");
+		return CreateResponse("INFO", "Zone is already armed", zoneId, "ARMED");
 	}
-	Logger::Warning("Zone with ID " + std::to_string(zoneId) + " not found.");
+	if (zone->isBypassed) {
+		Logger::Info("Arm failed: Zone " + std::to_string(zoneId) + " is bypassed.");
+		return CreateResponse("INFO", "Zone is bypassed, failed to arm", zoneId, "BYPASSED");
+	}
+
+	zone->Arm();
+	return CreateResponse("SUCCESS", "Zone " + std::to_string(zoneId) + " armed successfully", zoneId, "ARMED");
 }
-void AlarmService::ListAllZones()
+std::string AlarmService::DisarmZone(int zoneId) {
+	auto zone = GetZoneById(zoneId);
+
+	if (!zone) {
+		Logger::Info("Disarm failed: Zone " + std::to_string(zoneId) + " not found.");
+		return CreateResponse("ERROR", "Zone not found", zoneId);
+	}
+	if (!zone->isArmed) {
+		Logger::Info("Disarm request: Zone " + std::to_string(zoneId) + " already disarmed.");
+		return CreateResponse("INFO", "Zone is already disarmed", zoneId, "DISARMED");
+	}
+
+	zone->Disarm();
+	return CreateResponse("SUCCESS", "Zone " + std::to_string(zoneId) + " disarmed successfully", zoneId, "DISARMED");
+}
+std::string AlarmService::BypassZone(int zoneId, bool active) {
+	auto zone = GetZoneById(zoneId);
+	if (!zone) {
+		Logger::Info("Bypass failed: Zone " + std::to_string(zoneId) + " not found.");
+		return CreateResponse("ERROR", "Zone not found", zoneId);
+	}
+	zone->SetBypass(active);
+	std::string state = active ? "BYPASSED" : "UNBYPASSED";
+	std::string msg = active ? "bypassed" : "unbypassed";
+
+	return CreateResponse("SUCCESS", "Zone " + std::to_string(zoneId) + " " + msg, zoneId, state);
+}
+std::string AlarmService::GetZoneStatus(int zoneId)
 {
-	std::cout << "Listing all zones:" << std::endl;
+	auto zone = GetZoneById(zoneId);
+	if (!zone) return CreateResponse("ERROR", "Zone not found", zoneId);
+
+	std::string statusStr;
+	if (zone->isBypassed) statusStr = "BYPASSED";
+	else if (zone->isAlarming) statusStr = "ALARMING";
+	else if (zone->isArmed) statusStr = "ARMED";
+	else statusStr = "DISARMED";
+
+	return CreateResponse("SUCCESS", "Status query", zoneId, statusStr);
+}
+std::string AlarmService::TriggerZone(int zoneId)
+{
+	auto zone = GetZoneById(zoneId);
+	if (!zone)
+	{
+		Logger::Info("Trigger failed " + std::to_string(zoneId) + " not found.");
+		return CreateResponse("ERROR", "Zone not found", zoneId);
+	}
+	if (zone->isBypassed) {
+		Logger::Info("Trigger ignored: Zone " + std::to_string(zoneId) + " is bypassed.");
+		return CreateResponse("IGNORED", "Zone is bypassed", zoneId, "BYPASSED");
+	}
+	if (zone->isArmed)
+	{
+		zone->isAlarming = true;
+		Logger::Warning("ALARM TRIGGERED on Zone " + std::to_string(zoneId));
+		return CreateResponse("ALARM", "Zone is triggered " + std::to_string(zoneId), zoneId, "ALARMING");
+	}
+	else {
+		Logger::Info("Trigger ignored: Zone " + std::to_string(zoneId) + " is disarmed.");
+		return CreateResponse("IGNORED", "Zone is disarmed", zoneId, "DISARMED");
+	}
+}
+std::string AlarmService::ListAllZones()
+{
+	Logger::Info("Listing all zones: ");
+
+	json jArray = json::array();
+
 	for (const auto& zone : zones)
 	{
-		std::cout << "ID: " << zone->id
-			<< ", Name: " << zone->name
-			<< ", Type: " << zone->GetType()
-			<< ", Armed: " << (zone->isArmed ? "Yes" : "No")
-			<< ", Alarming: " << (zone->isAlarming ? "Yes" : "No")
-			<< ", Bypassed: " << (zone->isBypassed ? "Yes" : "No")
-			<< std::endl;
+		json jZone;
+		jZone["id"] = zone->id;
+		jZone["name"] = zone->name;
+		jZone["type"] = zone->GetType();
+		jZone["armed"] = zone->isArmed;
+		jZone["bypassed"] = zone->isBypassed;
+		jZone["alarming"] = zone->isAlarming;
+		jArray.push_back(jZone);
 	}
 	if (zones.empty())
 	{
 		Logger::Info("No zones available to list.");
+		return jArray.dump();
+	}
+	else {
+		Logger::Info("All zones listed");
+		return jArray.dump();
 	}
 }
-void AlarmService::ListOneZone(int zoneId)
+std::string AlarmService::ListOneZone(int zoneId)
 {
-	for (const auto& zone : zones)
-	{
-		if (zone->id == zoneId)
-		{
-			std::cout << "ID: " << zone->id
-				<< ", Name: " << zone->name
-				<< ", Type: " << zone->GetType()
-				<< ", Armed: " << (zone->isArmed ? "Yes" : "No")
-				<< ", Alarming: " << (zone->isAlarming ? "Yes" : "No")
-				<< ", Bypassed: " << (zone->isBypassed ? "Yes" : "No")
-				<< std::endl;
-			return;
-		}
+	Logger::Info("Listing chosen zone:");
+
+	auto zone = GetZoneById(zoneId);
+	json jZone;
+
+	if (!zone) {
+		Logger::Warning("ListOneZone: Zone " + std::to_string(zoneId) + " not found.");
+		return CreateResponse("ERROR", "Zone not found", zoneId);
 	}
-	Logger::Warning("Zone with ID " + std::to_string(zoneId) + " not found.");
+	else {
+		jZone["status"] = "SUCCESS";
+		jZone["id"] = zone->id;
+		jZone["name"] = zone->name;
+		jZone["type"] = zone->GetType();
+		jZone["armed"] = zone->isArmed;
+		jZone["bypassed"] = zone->isBypassed;
+		jZone["alarming"] = zone->isAlarming;
+
+		Logger::Info("Chosen zone listed");
+		return jZone.dump();
+	}
 }
-void AlarmService::ListArmedZones()
+std::string AlarmService::ListArmedZones()
 {
-	std::cout << "Listing armed zones:" << std::endl;
+	Logger::Info("Listing armed zones:");
+	json jArray = json::array();
+
 	for (const auto& zone : zones)
 	{
 		if (zone->isArmed)
 		{
-			std::cout << "ID: " << zone->id
-				<< ", Name: " << zone->name
-				<< ", Type: " << zone->GetType()
-				<< std::endl;
+			json jZone;
+			jZone["id"] = zone->id;
+			jZone["name"] = zone->name;
+			jZone["type"] = zone->GetType();
+			jZone["armed"] = zone->isArmed;
+			jZone["bypassed"] = zone->isBypassed;
+			jZone["alarming"] = zone->isAlarming;
+			jArray.push_back(jZone);
 		}
 	}
 	if (zones.empty())
 	{
 		Logger::Info("No zones available to list.");
+		return jArray.dump();
+	}
+	else {
+		Logger::Info("All armed zones listed");
+		return jArray.dump();
 	}
 }
-void AlarmService::ListBypassedZones()
+std::string AlarmService::ListBypassedZones()
 {
-	std::cout << "Listing bypassed zones:" << std::endl;
+	Logger::Info("Listing bypassed zones:");
+
+	json jArray = json::array();
+
 	for (const auto& zone : zones)
 	{
 		if (zone->isBypassed)
 		{
-			std::cout << "ID: " << zone->id
-				<< ", Name: " << zone->name
-				<< ", Type: " << zone->GetType()
-				<< std::endl;
+			json jZone;
+			jZone["id"] = zone->id;
+			jZone["name"] = zone->name;
+			jZone["type"] = zone->GetType();
+			jZone["armed"] = zone->isArmed;
+			jZone["bypassed"] = zone->isBypassed;
+			jZone["alarming"] = zone->isAlarming;
+			jArray.push_back(jZone);
 		}
 	}
 	if (zones.empty())
 	{
 		Logger::Info("No zones available to list.");
+		return jArray.dump();
+	}
+	else {
+		Logger::Info("All bypassed zones listed");
+		return jArray.dump();
 	}
 }
-void AlarmService::ListDisarmedZones()
+std::string AlarmService::ListDisarmedZones()
 {
-	std::cout << "Listing disarmed zones:" << std::endl;
+	Logger::Info("Listing disarmed zones:");
+
+	json jArray = json::array();
+
 	for (const auto& zone : zones)
 	{
 		if (!zone->isArmed)
 		{
-			std::cout << "ID: " << zone->id
-				<< ", Name: " << zone->name
-				<< ", Type: " << zone->GetType()
-				<< std::endl;
+			json jZone;
+			jZone["id"] = zone->id;
+			jZone["name"] = zone->name;
+			jZone["type"] = zone->GetType();
+			jZone["armed"] = zone->isArmed;
+			jZone["bypassed"] = zone->isBypassed;
+			jZone["alarming"] = zone->isAlarming;
+			jArray.push_back(jZone);
 		}
 	}
 	if (zones.empty())
 	{
 		Logger::Info("No zones available to list.");
+		return jArray.dump();
+	}
+	else {
+		Logger::Info("All disarmed zones listed");
+		return jArray.dump();
 	}
 }
-void AlarmService::ListAlarmingZones()
+std::string AlarmService::ListAlarmingZones()
 {
-	std::cout << "Listing alarming zones:" << std::endl;
+	Logger::Info("Listing alarming zones:");
+
+	json jArray = json::array();
+
 	for (const auto& zone : zones)
 	{
 		if (zone->isAlarming)
 		{
-			std::cout << "ID: " << zone->id
-				<< ", Name: " << zone->name
-				<< ", Type: " << zone->GetType()
-				<< std::endl;
+			json jZone;
+			jZone["id"] = zone->id;
+			jZone["name"] = zone->name;
+			jZone["type"] = zone->GetType();
+			jZone["armed"] = zone->isArmed;
+			jZone["bypassed"] = zone->isBypassed;
+			jZone["alarming"] = zone->isAlarming;
+			jArray.push_back(jZone);
 		}
 	}
 	if (zones.empty())
 	{
 		Logger::Info("No zones available to list.");
+		return jArray.dump();
+	}
+	else {
+		Logger::Info("All alarming zones listed");
+		return jArray.dump();
 	}
 }
 std::shared_ptr<Zone> AlarmService::GetZoneById(int zoneId)
@@ -221,46 +329,6 @@ std::shared_ptr<Zone> AlarmService::GetZoneById(int zoneId)
 		}
 	}
 	return nullptr;
-}
-std::string AlarmService::GetZoneStatus(int zoneId)
-{
-	auto zone = GetZoneById(zoneId);
-	if (!zone)
-	{
-		return "NOT_FOUND";
-	}
-	if (zone->isBypassed) {
-		return "BYPASSED";
-	}
-	if (zone->isAlarming) {
-		return "ALARMING";
-	}
-	if (zone->isArmed) {
-		return "ARMED";
-	}
-	return "DISARMED";
-}
-void AlarmService::TriggerZone(int zoneId)
-{
-	auto zone = GetZoneById(zoneId);
-	if (!zone)
-	{
-		Logger::Info("Zone with ID " + std::to_string(zoneId) + " not found for triggering.");
-		return;
-	}
-	if (zone->isBypassed) {
-		Logger::Info("Zone " + std::to_string(zoneId) + " is bypassed. Ignoring trigger.");
-		return;
-	}
-	if (zone->isArmed)
-	{
-		zone->isAlarming = true;
-		Logger::Warning("ALARM TRIGGERED! Zone " + std::to_string(zoneId) + " (" + zone->name + ") detected breach!");
-	}
-	else
-	{
-		Logger::Info("Zone " + std::to_string(zoneId) + " triggered but is DISARMED. Ignoring.");
-	}
 }
 void AlarmService::SaveStateToTxt() {
 	std::ofstream file("zone_state.txt");
@@ -373,7 +441,17 @@ void AlarmService::LoadStateFromJson() {
 		Logger::Error("Exception while loading JSON state: " + std::string(e.what()));
 	}
 	file.close();
-};
+}
+std::string AlarmService::CreateResponse(const std::string& status, const std::string& message, int id, const std::string& state) {
+	json responseJson;
+	responseJson["status"] = status;
+	responseJson["message"] = message;
+	if (id != -1) responseJson["id"] = id;
+	if (!state.empty()) responseJson["newState"] = state;
+	return responseJson.dump();
+
+}
+
 
 
 
