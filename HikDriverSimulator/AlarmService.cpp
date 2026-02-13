@@ -15,6 +15,12 @@ using json = nlohmann::json;
 // Initialize zones from zones.csv
 void AlarmService::InitializeZones()
 {
+	// Temporary partitions for test
+	partitions.clear();
+	partitions.push_back(std::make_shared<Partition>(1, "Default Partition"));
+	partitions.push_back(std::make_shared<Partition>(2, "Garage Partition"));
+	Logger::Info("Initialized 2 dummy partitions.");
+
 	Logger::Info("Initializing zones from zones.csv");
 	zones.clear();
 	std::ifstream file("zones.csv");
@@ -40,19 +46,33 @@ void AlarmService::InitializeZones()
 			int zoneId = std::stoi(parts[0]);
 			std::string zoneType = parts[1];
 			std::string zoneName = parts[2];
+			int zonePartitionId = -1;
+
+			if (parts.size() >= 4) 
+			{
+				try
+				{
+					zonePartitionId = std::stoi(parts[3]);
+
+				}
+				catch (const std::exception&)
+				{
+					Logger::Error("Error while reading partition data for zone " + std::to_string(zoneId));
+				}
+			}
 
 			std::shared_ptr<Zone> newZone;
 			if (zoneType == "Motion Sensor")
 			{
-				newZone = std::make_shared<MotionSenzor>(zoneId, zoneName);
+				newZone = std::make_shared<MotionSenzor>(zoneId, zoneName, zonePartitionId);
 			}
 			else if (zoneType == "Door Contact")
 			{
-				newZone = std::make_shared<DoorContact>(zoneId, zoneName);
+				newZone = std::make_shared<DoorContact>(zoneId, zoneName, zonePartitionId);
 			}
 			else
 			{
-				newZone = std::make_shared<Zone>(zoneId, zoneName);
+				newZone = std::make_shared<Zone>(zoneId, zoneName, zonePartitionId);
 			}
 			zones.push_back(newZone);
 			Logger::Info("Added zone: ID=" + std::to_string(zoneId) + ", Name=" + zoneName + ", Type=" + zoneType);
@@ -76,7 +96,7 @@ std::string AlarmService::ArmZone(int zoneId)
 	}
 	if (zone->isArmed) {
 		Logger::Info("Arm request: Zone " + std::to_string(zoneId) + " already armed.");
-		return CreateResponse("INFO", "Zone is already armed", zoneId, "ARMED");
+		return CreateResponse("IGNORED", "Zone is already armed", zoneId, "ARMED");
 	}
 	if (zone->isBypassed) {
 		Logger::Info("Arm failed: Zone " + std::to_string(zoneId) + " is bypassed.");
@@ -95,7 +115,7 @@ std::string AlarmService::DisarmZone(int zoneId) {
 	}
 	if (!zone->isArmed) {
 		Logger::Info("Disarm request: Zone " + std::to_string(zoneId) + " already disarmed.");
-		return CreateResponse("INFO", "Zone is already disarmed", zoneId, "DISARMED");
+		return CreateResponse("IGNORED", "Zone is already disarmed", zoneId, "DISARMED");
 	}
 
 	zone->Disarm();
@@ -157,13 +177,7 @@ std::string AlarmService::ListAllZones()
 
 	for (const auto& zone : zones)
 	{
-		json jZone;
-		jZone["id"] = zone->id;
-		jZone["name"] = zone->name;
-		jZone["type"] = zone->GetType();
-		jZone["armed"] = zone->isArmed;
-		jZone["bypassed"] = zone->isBypassed;
-		jZone["alarming"] = zone->isAlarming;
+		json jZone = CreateZoneJson(zone);
 		jArray.push_back(jZone);
 	}
 	if (zones.empty())
@@ -188,13 +202,8 @@ std::string AlarmService::ListOneZone(int zoneId)
 		return CreateResponse("ERROR", "Zone not found", zoneId);
 	}
 	else {
+		jZone = CreateZoneJson(zone);
 		jZone["status"] = "SUCCESS";
-		jZone["id"] = zone->id;
-		jZone["name"] = zone->name;
-		jZone["type"] = zone->GetType();
-		jZone["armed"] = zone->isArmed;
-		jZone["bypassed"] = zone->isBypassed;
-		jZone["alarming"] = zone->isAlarming;
 
 		Logger::Info("Chosen zone listed");
 		return jZone.dump();
@@ -209,13 +218,7 @@ std::string AlarmService::ListArmedZones()
 	{
 		if (zone->isArmed)
 		{
-			json jZone;
-			jZone["id"] = zone->id;
-			jZone["name"] = zone->name;
-			jZone["type"] = zone->GetType();
-			jZone["armed"] = zone->isArmed;
-			jZone["bypassed"] = zone->isBypassed;
-			jZone["alarming"] = zone->isAlarming;
+			json jZone = CreateZoneJson(zone);
 			jArray.push_back(jZone);
 		}
 	}
@@ -239,13 +242,7 @@ std::string AlarmService::ListBypassedZones()
 	{
 		if (zone->isBypassed)
 		{
-			json jZone;
-			jZone["id"] = zone->id;
-			jZone["name"] = zone->name;
-			jZone["type"] = zone->GetType();
-			jZone["armed"] = zone->isArmed;
-			jZone["bypassed"] = zone->isBypassed;
-			jZone["alarming"] = zone->isAlarming;
+			json jZone = CreateZoneJson(zone);
 			jArray.push_back(jZone);
 		}
 	}
@@ -269,13 +266,7 @@ std::string AlarmService::ListDisarmedZones()
 	{
 		if (!zone->isArmed)
 		{
-			json jZone;
-			jZone["id"] = zone->id;
-			jZone["name"] = zone->name;
-			jZone["type"] = zone->GetType();
-			jZone["armed"] = zone->isArmed;
-			jZone["bypassed"] = zone->isBypassed;
-			jZone["alarming"] = zone->isAlarming;
+			json jZone = CreateZoneJson(zone);
 			jArray.push_back(jZone);
 		}
 	}
@@ -299,13 +290,7 @@ std::string AlarmService::ListAlarmingZones()
 	{
 		if (zone->isAlarming)
 		{
-			json jZone;
-			jZone["id"] = zone->id;
-			jZone["name"] = zone->name;
-			jZone["type"] = zone->GetType();
-			jZone["armed"] = zone->isArmed;
-			jZone["bypassed"] = zone->isBypassed;
-			jZone["alarming"] = zone->isAlarming;
+			json jZone = CreateZoneJson(zone);
 			jArray.push_back(jZone);
 		}
 	}
@@ -326,6 +311,17 @@ std::shared_ptr<Zone> AlarmService::GetZoneById(int zoneId)
 		if (zone->id == zoneId)
 		{
 			return zone;
+		}
+	}
+	return nullptr;
+}
+std::shared_ptr<Partition> AlarmService::GetPartitionById(int partitionId)
+{
+	for (const auto& part : partitions)
+	{
+		if (part->id == partitionId)
+		{
+			return part;
 		}
 	}
 	return nullptr;
@@ -391,7 +387,11 @@ void AlarmService::SaveStateToJson() {
 		jZone["id"] = zone->id;
 		jZone["armed"] = zone->isArmed;
 		jZone["bypassed"] = zone->isBypassed;
-
+		jZone["alarming"] = zone->isAlarming;
+		jZone["active"] = zone->isActive;
+		jZone["tampered"] = zone->isTampered;
+		jZone["faulted"] = zone->isFaulted;
+		jZone["partitionId"] = zone->partitionId;
 
 		JArray.push_back(jZone);
 	}
@@ -418,15 +418,21 @@ void AlarmService::LoadStateFromJson() {
 
 		for (const auto& jZone : JArray)
 		{
-			if (jZone.contains("id") && jZone.contains("armed") && jZone.contains("bypassed"))
+			if (jZone.contains("id") && jZone.contains("armed") && jZone.contains("bypassed") && jZone.contains("alarming") && jZone.contains("active")
+				&& jZone.contains("tampered") && jZone.contains("faulted") && jZone.contains("partitionId"))
 			{
 				int zoneId = jZone["id"];
 				bool isArmed = jZone["armed"];
 				bool isBypassed = jZone["bypassed"];
+				int partitionId = jZone["partitionId"];
 				auto zone = GetZoneById(zoneId);
 				if (zone) {
 					zone->isArmed = isArmed;
 					zone->isBypassed = isBypassed;
+					zone->isAlarming = isArmed && !isBypassed && jZone["alarming"];
+					zone->isActive = jZone["active"];
+					zone->isTampered = jZone["tampered"];
+					zone->isFaulted = jZone["faulted"];
 				}
 			}
 		}
@@ -451,6 +457,125 @@ std::string AlarmService::CreateResponse(const std::string& status, const std::s
 	return responseJson.dump();
 
 }
+std::string AlarmService::ArmPartition(int partitionId)
+{
+	Logger::Info("Request to ARM Partition: " + std::to_string(partitionId));
+
+	auto partition = GetPartitionById(partitionId);
+	if (!partition)
+	{
+		Logger::Warning("ArmPartition failed: Partition " + std::to_string(partitionId) + " does not exist.");
+		return CreateResponse("ERROR", "Partition not found", partitionId);
+	}
+	if (partition->isArmed) 
+	{
+		Logger::Info("Partition " + std::to_string(partitionId) + " already armed.");
+		return CreateResponse("IGNORED", "Partition already armed", partitionId, "ARMED");
+	}
+
+	json errorList = json::array();
+	std::vector<std::shared_ptr<Zone>> zonesToArm;
+
+	for (auto& zone : zones) {
+		if (zone->partitionId == partitionId) {
+
+			if (zone->isBypassed) {
+				zonesToArm.push_back(zone);
+				Logger::Info("Zone " + std::to_string(zone->id) + " is bypassed. Ignoring status checks.");
+				continue; 
+			}
+			if (zone->isTampered) {
+				json errorItem;
+				errorItem["id"] = zone->id;
+				errorItem["name"] = zone->name;
+				errorItem["bypassed"] = zone->isBypassed;
+				errorItem["reason"] = "ZONE_TAMPERED";
+				errorList.push_back(errorItem);
+			}
+			else if (zone->isFaulted) {
+				json errorItem;
+				errorItem["id"] = zone->id;
+				errorItem["name"] = zone->name;
+				errorItem["bypassed"] = zone->isBypassed;
+				errorItem["reason"] = "ZONE_FAULTED";
+				errorList.push_back(errorItem);
+			}
+			else if (zone->isActive) {
+				json errorItem;
+				errorItem["id"] = zone->id;
+				errorItem["name"] = zone->name;
+				errorItem["bypassed"] = zone->isBypassed;
+				errorItem["reason"] = "ZONE_ACTIVE";
+				errorList.push_back(errorItem);
+			}
+			else {
+				zonesToArm.push_back(zone);
+			}
+		}
+	}
+	if (!errorList.empty()) {
+		json response;
+		response["status"] = "ERROR";
+		response["message"] = "Partition not ready";
+		response["partitionId"] = partitionId;
+		response["faultedZones"] = errorList;
+
+		Logger::Warning("Arming Partition " + std::to_string(partitionId) + " failed due to active/faulted zones.");
+		return response.dump();
+	}
+	int armedCount = 0;
+	for (auto& zone : zonesToArm) {
+
+		if (!zone->isArmed) {
+			zone->Arm();
+
+			if (zone->isArmed) {
+				armedCount++;
+			}
+		}
+	}
+	partition->isArmed = true;
+	return CreateResponse("SUCCESS", "Partition with "+ std::to_string(armedCount) + " zones, armed successfully", partitionId, "ARMED");
+}
+std::string AlarmService::DisarmPartition(int partitionId)
+{
+	Logger::Info("Request to DISARM Partition: " + std::to_string(partitionId));
+
+	auto partition = GetPartitionById(partitionId);
+	if (!partition) {
+		return CreateResponse("ERROR", "Partition not found", partitionId);
+	}
+	if (!partition->isArmed)
+	{
+		Logger::Info("Partition " + std::to_string(partitionId) + " already armed.");
+		return CreateResponse("IGNORED", "Partition already disarmed", partitionId, "DISARMED");
+	}
+
+	for (auto& zone : zones) {
+		if (zone->partitionId == partitionId) {
+			zone->Disarm();
+		}
+	}
+	partition->isArmed = false;
+	return CreateResponse("SUCCESS", "Partition disarmed", partitionId, "DISARMED");
+}
+json AlarmService::CreateZoneJson(const std::shared_ptr<Zone>& zone)
+{
+	json jZone; 
+	jZone["id"] = zone->id; 
+	jZone["name"] = zone->name; 
+	jZone["type"] = zone->GetType(); 
+	jZone["armed"] = zone->isArmed; 
+	jZone["bypassed"] = zone->isBypassed; 
+	jZone["alarming"] = zone->isAlarming; 
+	jZone["active"] = zone->isActive;
+	jZone["tampered"] = zone->isTampered;
+	jZone["faulted"] = zone->isFaulted;
+	jZone["partitionId"] = zone->partitionId;
+	return jZone;
+}
+
+
 
 
 

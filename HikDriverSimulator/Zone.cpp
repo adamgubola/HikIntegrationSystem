@@ -2,15 +2,24 @@
 #include <iostream>
 #include "Logger.h"
 
-Zone::Zone(int zoneId, const std::string& zoneName)
-	: id(zoneId), name(zoneName), isArmed(false), isAlarming(false), isBypassed(false)
+Zone::Zone(int zoneId, const std::string& zoneName, int newPartitionId = -1)
+	: id(zoneId),
+	name(zoneName),
+	partitionId(newPartitionId),
+	isArmed(false),
+	isAlarming(false),
+	isBypassed(false),
+	isActive(false),  
+	isTampered(false), 
+	isFaulted(false)
+	
 {
 }
 Zone::~Zone() {}
 
 void Zone::Arm()
 {
-	if(isArmed)
+	if (isArmed)
 	{
 		Logger::Info("Zone " + std::to_string(id) + " (" + name + ") is already armed.");
 		return;
@@ -28,7 +37,7 @@ void Zone::Arm()
 }
 void Zone::Disarm()
 {
-	if(!isArmed)
+	if (!isArmed)
 	{
 		Logger::Info("Zone " + std::to_string(id) + " (" + name + ") is already disarmed.");
 		return;
@@ -37,10 +46,10 @@ void Zone::Disarm()
 	isAlarming = false;
 	Logger::Info("Zone " + std::to_string(id) + " (" + name + ") is disarmed.");
 }
-void Zone::SetBypass(bool active)
+void Zone::SetBypass(bool bypassState)
 {
-	isBypassed = active;
-	if(active)
+	isBypassed = bypassState;
+	if (bypassState)
 	{
 		Logger::Info("Zone " + std::to_string(id) + " (" + name + ") is bypassed.");
 	}
@@ -51,5 +60,58 @@ void Zone::SetBypass(bool active)
 
 }
 const std::string Zone::GetType() { return "Generic Zone"; }
+
+void Zone::SetPartitionId(int newPartitionId) {	this->partitionId = newPartitionId;}
+void Zone::SetTampered(bool tampered) 
+{ 
+	isTampered = tampered;
+	if (tampered) 
+	{ 
+		Logger::Warning("Zone " + std::to_string(id) + " (" + name + ") is tampered!"); 
+		if (isArmed) {
+			isAlarming = true;
+			Logger::Warning("ALARM on Zone " + std::to_string(id) + " (" + name + ")!");
+		}
+	}
+	else 
+	{ 
+		Logger::Info("Zone " + std::to_string(id) + " (" + name + ") tamper cleared."); 
+	}
+}
+void Zone::SetFaulted(bool faulted) 
+{ 
+	this->isFaulted = faulted;
+	if (faulted) 
+	{ 
+		Logger::Warning("Zone " + std::to_string(id) + " (" + name + ") is faulted!"); 
+		if (isArmed) {
+			isAlarming = true;
+			Logger::Warning("ALARM on Zone " + std::to_string(id) + " (" + name + ")!");
+		}
+	}
+	else
+	{ 
+		Logger::Info("Zone " + std::to_string(id) + " (" + name + ") fault cleared."); 
+	}
+}
+void Zone::SetActive(bool active) 
+{ 
+	this->isActive = active; 
+	if (active) 
+	{ 
+		Logger::Info("Zone " + std::to_string(id) + " (" + name + ") is active."); 
+		if (isArmed) {
+			isAlarming = true;
+			Logger::Warning("ALARM on Zone " + std::to_string(id) + " (" + name + ")!");
+		}
+	}
+	else 
+	{ 
+		Logger::Info("Zone " + std::to_string(id) + " (" + name + ") is inactive."); 
+	}
+
+}
+
+
 
 

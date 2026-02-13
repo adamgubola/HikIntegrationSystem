@@ -1,32 +1,62 @@
 [
     {
+        "active": false,
+        "alarming": false,
         "armed": true,
         "bypassed": false,
-        "id": 1
+        "faulted": false,
+        "id": 1,
+        "partitionId": 2,
+        "tampered": false
     },
     {
+        "active": false,
+        "alarming": false,
+        "armed": false,
+        "bypassed": false,
+        "faulted": false,
+        "id": 2,
+        "partitionId": 2,
+        "tampered": false
+    },
+    {
+        "active": false,
+        "alarming": false,
+        "armed": false,
+        "bypassed": false,
+        "faulted": false,
+        "id": 3,
+        "partitionId": 2,
+        "tampered": false
+    },
+    {
+        "active": false,
+        "alarming": false,
         "armed": true,
         "bypassed": false,
-        "id": 2
+        "faulted": false,
+        "id": 4,
+        "partitionId": 1,
+        "tampered": false
     },
     {
+        "active": false,
+        "alarming": false,
         "armed": false,
-        "bypassed": false,
-        "id": 3
+        "bypassed": true,
+        "faulted": false,
+        "id": 5,
+        "partitionId": 1,
+        "tampered": false
     },
     {
-        "armed": false,
+        "active": false,
+        "alarming": false,
+        "armed": true,
         "bypassed": false,
-        "id": 4
-    },
-    {
-        "armed": false,
-        "bypassed": false,
-        "id": 5
-    },
-    {
-        "armed": false,
-        "bypassed": false,
-        "id": 6
+        "faulted": false,
+        "id": 6,
+        "partitionId": 1,
+        "tampered": false
     }
 ]

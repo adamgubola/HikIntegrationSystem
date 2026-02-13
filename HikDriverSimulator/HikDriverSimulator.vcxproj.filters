@@ -48,6 +48,9 @@
     <ClInclude Include="Logger.h">
       <Filter>Core</Filter>
     </ClInclude>
+    <ClInclude Include="Partition.h">
+      <Filter>Models</Filter>
+    </ClInclude>
   </ItemGroup>
   <ItemGroup>
     <ClCompile Include="Zone.cpp">
@@ -67,6 +70,9 @@
     </ClCompile>
     <ClCompile Include="Logger.cpp">
       <Filter>Core</Filter>
+    </ClCompile>
+    <ClCompile Include="Partition.cpp">
+      <Filter>Models</Filter>
     </ClCompile>
   </ItemGroup>
   <ItemGroup>

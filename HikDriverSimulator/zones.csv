@@ -1,6 +1,6 @@
-1;Motion Sensor;Nappali Mozgas
-2;Door Contact;Bejarat Ajto
-3;Door Contact;Garazs Kapu
-4;Motion Sensor;Folyoso
-5;Door Contact;Terasz Ajto
-6;Generic; Okos rele
+1;Motion Sensor;Nappali Mozgas;2
+2;Door Contact;Bejarat Ajto;2
+3;Door Contact;Garazs Kapu;2
+4;Motion Sensor;Folyoso;1
+5;Door Contact;Terasz Ajto;1
+6;Generic; Okos rele;1

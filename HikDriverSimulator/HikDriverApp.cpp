@@ -34,14 +34,16 @@ void HikDriverApp::ShowMenu() {
 	std::cout << "2. Disarm Zone" << std::endl;
 	std::cout << "3. Bypass Zone" << std::endl;
 	std::cout << "4. Unbypass Zone" << std::endl;
+	std::cout << "5. Arm Partition" << std::endl;
+	std::cout << "6. Disarm Partition" << std::endl;
 
 	std::cout << "\n--- Monitoring / Lists ---" << std::endl;
-	std::cout << "5. List All Zones" << std::endl;
-	std::cout << "6. List ARMED Zones Only" << std::endl;
-	std::cout << "7. List DISARMED Zones Only" << std::endl;
-	std::cout << "8. List BYPASSED Zones Only" << std::endl;
-	std::cout << "9. List ALARMING Zones Only" << std::endl;
-	std::cout << "10. Find Zone by ID" << std::endl;
+	std::cout << "7. List All Zones" << std::endl;
+	std::cout << "8. List ARMED Zones Only" << std::endl;
+	std::cout << "9. List DISARMED Zones Only" << std::endl;
+	std::cout << "10. List BYPASSED Zones Only" << std::endl;
+	std::cout << "11. List ALARMING Zones Only" << std::endl;
+	std::cout << "12. Find Zone by ID" << std::endl;
 
 	std::cout << "0. Exit" << std::endl;
 	std::cout << "Select option: ";
@@ -64,42 +66,52 @@ void HikDriverApp::Run() {
 		std::cout << "\n";
 
 		switch (choice) {
-		case 1: // Arm
+		case 1:
 			std::cout << "Enter Zone ID to ARM: ";
 			std::cin >> id;
 			PrintJsonToConsole(alarmService.ArmZone(id));
 			break;
-		case 2: // Disarm
+		case 2:
 			std::cout << "Enter Zone ID to DISARM: ";
 			std::cin >> id;
 			PrintJsonToConsole(alarmService.DisarmZone(id));
 			break;
-		case 3: // Bypass
+		case 3:
 			std::cout << "Enter Zone ID to BYPASS: ";
 			std::cin >> id;
 			PrintJsonToConsole(alarmService.BypassZone(id, true));
 			break;
-		case 4: // Unbypass
+		case 4:
 			std::cout << "Enter Zone ID to UNBYPASS: ";
 			std::cin >> id;
 			PrintJsonToConsole(alarmService.BypassZone(id, false));
 			break;
 		case 5:
-			PrintJsonToConsole(alarmService.ListAllZones());
+			std::cout << "Enter Partition ID to ARM: ";
+			std::cin >> id;
+			PrintJsonToConsole(alarmService.ArmPartition(id));
 			break;
 		case 6:
-			PrintJsonToConsole(alarmService.ListArmedZones());
+			std::cout << "Enter Partition ID to DISARM: ";
+			std::cin >> id;
+			PrintJsonToConsole(alarmService.DisarmPartition(id));
 			break;
 		case 7:
-			PrintJsonToConsole(alarmService.ListDisarmedZones());
+			PrintJsonToConsole(alarmService.ListAllZones());
 			break;
 		case 8:
-			PrintJsonToConsole(alarmService.ListBypassedZones());
+			PrintJsonToConsole(alarmService.ListArmedZones());
 			break;
 		case 9:
-			PrintJsonToConsole(alarmService.ListAlarmingZones());
+			PrintJsonToConsole(alarmService.ListDisarmedZones());
 			break;
 		case 10:
+			PrintJsonToConsole(alarmService.ListBypassedZones());
+			break;
+		case 11:
+			PrintJsonToConsole(alarmService.ListAlarmingZones());
+			break;
+		case 12:
 			std::cout << "Enter Zone ID to find: ";
 			std::cin >> id;
 			PrintJsonToConsole(alarmService.ListOneZone(id));
@@ -132,10 +144,14 @@ void HikDriverApp::PrintJsonToConsole(const std::string& jsonResponse) {
 			std::cout << "\n   --- ZONE LIST ---" << std::endl;
 			for (const auto& item : jsonInp) {
 
-				if (item.contains("id")) std::cout << "| ID: " << item["id"];
+				if (item.contains("id")) std::cout << "| Zone ID: " << item["id"];
+				if (item.contains("partitionId")) std::cout << " | Partition Id: " << item["partitionId"];
 				if (item.contains("name")) std::cout << "| Name: " << item["name"];
 				if (item.contains("type")) std::cout << "| Type: " << item["type"];
 				if (item.contains("armed")) std::cout << " | Status: " << (item["armed"].get<bool>() ? "ARMED" : "DISARMED");
+				if (item.contains("active") && item["active"].get<bool>()) std::cout << " | ACTIVE";
+				if (item.contains("tampered") && item["tampered"].get<bool>()) std::cout << " | TAMPERED";
+				if (item.contains("faulted") && item["faulted"].get<bool>()) std::cout << " | FAULTED";
 				if (item.contains("bypassed") && item["bypassed"].get<bool>()) std::cout << " | BYPASSED";
 				if (item.contains("alarming") && item["alarming"].get<bool>()) std::cout << " | !!! ALARM !!!";
 				std::cout << std::endl;;
@@ -147,20 +163,45 @@ void HikDriverApp::PrintJsonToConsole(const std::string& jsonResponse) {
 			std::string message = jsonInp.value("message", "");
 
 			if (status == "SUCCESS") {
-				if (jsonInp.contains("id")) std::cout << "| ID: " << jsonInp["id"];
+				if (jsonInp.contains("id")) {
+					std::string label = (message.find("Partition") != std::string::npos) ? "| Partition ID: " : "| Zone ID: ";
+					std::cout << label << jsonInp["id"];
+				}
 				if (jsonInp.contains("name")) std::cout << "| Name: " << jsonInp["name"];
 				if (jsonInp.contains("type")) std::cout << "| Type: " << jsonInp["type"];
 				if (jsonInp.contains("armed")) std::cout << " | Status: " << (jsonInp["armed"].get<bool>() ? "ARMED" : "DISARMED");
-				if (jsonInp.contains("bypassed") && jsonInp["bypassed"].get<bool>()) std::cout << " | BYPASSED";
-				if (jsonInp.contains("alarming") && jsonInp["alarming"].get<bool>()) std::cout << " | !!! ALARM !!!";
 				if (jsonInp.contains("message")) std::cout << "| Message: " << jsonInp["message"];
 				if (jsonInp.contains("newState")) std::cout << "| New Sate: " << jsonInp["newState"] << std::endl;;
 			}
-			else if (status == "ERROR" || status == "ALARM" || status == "IGNORED") {
-				if (jsonInp.contains("id")) std::cout << "| ID: " << jsonInp["id"];
+			else if (status == "ERROR") {
+				if (jsonInp.contains("partitionId")) std::cout << "| Partition ID: " << jsonInp["partitionId"];
 				if (jsonInp.contains("name")) std::cout << "| Name: " << jsonInp["name"];
 				std::cout << " [" << status << "] ";
 				std::cout << " [" << message << "] " << std::endl;
+
+				if (jsonInp.contains("faultedZones")) {
+					auto& jsonFaultedList = jsonInp["faultedZones"];
+					std::cout << "Problems preventing arming" << std::endl;
+
+					for (const auto& fault : jsonFaultedList) {
+
+						if (jsonFaultedList.contains("id")) std::cout << "| Zone ID: " << jsonFaultedList["id"];
+						if (jsonFaultedList.contains("name")) std::cout << "| Name: " << jsonFaultedList["name"];
+						if (jsonFaultedList.contains("bypassed") && jsonFaultedList["bypassed"].get<bool>()) std::cout << " | BYPASSED";
+						if (jsonFaultedList.contains("reason")) std::cout << jsonFaultedList["reason"];
+					}
+					std::cout << "----------------------------------" << std::endl;
+				}
+
+
+			}
+			else if (status == "ALARM" || status == "IGNORED") {
+				if (jsonInp.contains("id")) std::cout << "| ID: " << jsonInp["id"];
+				if (jsonInp.contains("name")) std::cout << "| Name: " << jsonInp["name"];
+				std::cout << " [" << status << "] ";
+				std::cout << " [" << message << "] ";
+				if (jsonInp.contains("newState")) std::cout << "| Sate: " << jsonInp["newState"] << std::endl;;
+
 			}
 			else {
 				if (jsonInp.contains("id")) std::cout << "| ID: " << jsonInp["id"];

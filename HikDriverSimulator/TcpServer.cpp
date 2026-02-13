@@ -158,6 +158,12 @@ void TcpServer::ListenForClients() {
 				else if (command == "LIST_ONE_ZONE") {
 					response = alarmService->ListOneZone(std::stoi(paramStr));
 				}
+				else if (command == "DISARM_PARTITION") {
+					response = alarmService->DisarmPartition(std::stoi(paramStr));
+				}
+				else if (command == "ARM_PARTITION") {
+					response = alarmService->ArmPartition(std::stoi(paramStr));
+				}
 				else {
 					nlohmann::json jErr;
 					jErr["status"] = "ERROR";
