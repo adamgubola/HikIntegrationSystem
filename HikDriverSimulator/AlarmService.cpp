@@ -379,76 +379,103 @@ void AlarmService::LoadStateFromTxt() {
 	Logger::Info("Previous zone states loaded from zone_state.txt");
 }
 void AlarmService::SaveStateToJson() {
+	json jSystem;
 
-	json JArray;
-	for (const auto& zone : zones) {
-
-		json jZone;
-		jZone["id"] = zone->id;
-		jZone["armed"] = zone->isArmed;
-		jZone["bypassed"] = zone->isBypassed;
-		jZone["alarming"] = zone->isAlarming;
-		jZone["active"] = zone->isActive;
-		jZone["tampered"] = zone->isTampered;
-		jZone["faulted"] = zone->isFaulted;
-		jZone["partitionId"] = zone->partitionId;
-
-		JArray.push_back(jZone);
+	json jPartitions = json::array();
+	for (const auto& partition : partitions) {
+		json jPart;
+		jPart["id"] = partition->id;
+		jPart["name"] = partition->name;
+		jPart["armed"] = partition->isArmed;
+		jPartitions.push_back(jPart);
 	}
-	std::ofstream file("zone_state.json");
+	jSystem["partitions"] = jPartitions;
+
+	json jZones = json::array();
+	for (const auto& zone : zones) {
+		jZones.push_back(CreateZoneJson(zone));
+	}
+	jSystem["zones"] = jZones;
+
+	std::ofstream file("system_state.json");
 	if (file.is_open()) {
-		file << JArray.dump(4);
+		file << jSystem.dump(4);
 		file.close();
-		Logger::Info("Zone states saved successfully to JSON.");
+		Logger::Info("System state (Partitions and Zones) saved successfully to JSON.");
 	}
 	else {
-		Logger::Error("Could not save state to zone_state.json");
+		Logger::Error("Could not save state to system_state.json");
 	}
 }
 void AlarmService::LoadStateFromJson() {
-	std::ifstream file("zone_state.json");
+	std::ifstream file("system_state.json");
 	if (!file.is_open()) {
-		Logger::Warning("No saved JSON state found (zone_state.json)");
+		Logger::Warning("No saved JSON state found (system_state.json). Using default states.");
 		return;
 	}
-	json JArray;
-	try
-	{
-		file >> JArray;
 
-		for (const auto& jZone : JArray)
-		{
-			if (jZone.contains("id") && jZone.contains("armed") && jZone.contains("bypassed") && jZone.contains("alarming") && jZone.contains("active")
-				&& jZone.contains("tampered") && jZone.contains("faulted") && jZone.contains("partitionId"))
-			{
-				int zoneId = jZone["id"];
-				bool isArmed = jZone["armed"];
-				bool isBypassed = jZone["bypassed"];
-				int partitionId = jZone["partitionId"];
-				auto zone = GetZoneById(zoneId);
-				if (zone) {
-					zone->isArmed = isArmed;
-					zone->isBypassed = isBypassed;
-					zone->isAlarming = isArmed && !isBypassed && jZone["alarming"];
-					zone->isActive = jZone["active"];
-					zone->isTampered = jZone["tampered"];
-					zone->isFaulted = jZone["faulted"];
+	json jSystem;
+	try {
+		file >> jSystem;
+
+		if (jSystem.contains("partitions") && jSystem["partitions"].is_array()) {
+			for (const auto& jPart : jSystem["partitions"]) {
+				if (jPart.contains("id")) {
+					int pId = jPart["id"];
+					auto partition = GetPartitionById(pId);
+
+					if (partition) {
+						if (jPart.contains("armed")) partition->isArmed = jPart["armed"];
+						if (jPart.contains("name")) partition->name = jPart["name"];
+					}
+					else {
+						std::string pName = jPart.value("name", "Unknown Partition");
+						auto newPart = std::make_shared<Partition>(pId, pName);
+						if (jPart.contains("armed")) newPart->isArmed = jPart["armed"];
+						partitions.push_back(newPart);
+					}
 				}
 			}
+			Logger::Info("Partition data loaded from JSON backup.");
 		}
-		Logger::Info("Previous zone states loaded from JSON.");
+
+		if (jSystem.contains("zones") && jSystem["zones"].is_array()) {
+			for (const auto& jZone : jSystem["zones"]) {
+				if (jZone.contains("id")) {
+					int zoneId = jZone["id"];
+					auto zone = GetZoneById(zoneId);
+
+					if (zone) {
+						if (jZone.contains("name")) zone->name = jZone["name"];
+						if (jZone.contains("partitionId")) zone->partitionId = jZone["partitionId"];
+
+						if (jZone.contains("armed")) zone->isArmed = jZone["armed"];
+						if (jZone.contains("bypassed")) zone->isBypassed = jZone["bypassed"];
+						if (jZone.contains("active")) zone->isActive = jZone["active"];
+						if (jZone.contains("tampered")) zone->isTampered = jZone["tampered"];
+						if (jZone.contains("faulted")) zone->isFaulted = jZone["faulted"];
+
+						if (jZone.contains("alarming") && zone->isArmed && !zone->isBypassed) {
+							zone->isAlarming = jZone["alarming"];
+						}
+					}
+					else {
+						//Future function for full backup
+						Logger::Warning("Zone " + std::to_string(zoneId) + " found in backup but not in CSV. Skipping.");
+					}
+				}
+			}
+			Logger::Info("Zone data loaded from JSON backup.");
+		}
 	}
-	catch (const json::parse_error& e)
-	{
+	catch (const json::parse_error& e) {
 		Logger::Error("JSON parse error while loading state: " + std::string(e.what()));
 	}
-	catch (const std::exception& e)
-	{
+	catch (const std::exception& e) {
 		Logger::Error("Exception while loading JSON state: " + std::string(e.what()));
 	}
 	file.close();
-}
-std::string AlarmService::CreateResponse(const std::string& status, const std::string& message, int id, const std::string& state) {
+}std::string AlarmService::CreateResponse(const std::string& status, const std::string& message, int id, const std::string& state) {
 	json responseJson;
 	responseJson["status"] = status;
 	responseJson["message"] = message;
@@ -574,9 +601,3 @@ json AlarmService::CreateZoneJson(const std::shared_ptr<Zone>& zone)
 	jZone["partitionId"] = zone->partitionId;
 	return jZone;
 }
-
-
-
-
-
-

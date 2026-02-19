@@ -1,0 +1,88 @@
+{
+    "partitions": [
+        {
+            "armed": false,
+            "id": 1,
+            "name": "Default Partition"
+        },
+        {
+            "armed": true,
+            "id": 2,
+            "name": "Garage Partition"
+        }
+    ],
+    "zones": [
+        {
+            "active": false,
+            "alarming": false,
+            "armed": true,
+            "bypassed": false,
+            "faulted": false,
+            "id": 1,
+            "name": "Nappali Mozgas",
+            "partitionId": 2,
+            "tampered": false,
+            "type": "Motion Sensor"
+        },
+        {
+            "active": false,
+            "alarming": false,
+            "armed": true,
+            "bypassed": false,
+            "faulted": false,
+            "id": 2,
+            "name": "Bejarat Ajto",
+            "partitionId": 2,
+            "tampered": false,
+            "type": "Door Contact"
+        },
+        {
+            "active": false,
+            "alarming": false,
+            "armed": true,
+            "bypassed": false,
+            "faulted": false,
+            "id": 3,
+            "name": "Garazs Kapu",
+            "partitionId": 2,
+            "tampered": false,
+            "type": "Door Contact"
+        },
+        {
+            "active": false,
+            "alarming": false,
+            "armed": false,
+            "bypassed": false,
+            "faulted": false,
+            "id": 4,
+            "name": "Folyoso",
+            "partitionId": 1,
+            "tampered": false,
+            "type": "Motion Sensor"
+        },
+        {
+            "active": false,
+            "alarming": false,
+            "armed": false,
+            "bypassed": true,
+            "faulted": false,
+            "id": 5,
+            "name": "Terasz Ajto",
+            "partitionId": 1,
+            "tampered": false,
+            "type": "Door Contact"
+        },
+        {
+            "active": false,
+            "alarming": false,
+            "armed": false,
+            "bypassed": false,
+            "faulted": false,
+            "id": 6,
+            "name": " Okos rele",
+            "partitionId": 1,
+            "tampered": false,
+            "type": "Generic Zone"
+        }
+    ]
+}
